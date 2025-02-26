@@ -30,6 +30,12 @@ func main() {
 		fmt.Println("Error creating output directory:", err)
 		os.Exit(1)
 	}
+	fmt.Println(`
+   _____ _____ _____ _____ _           
+  |     |  |  |     |     | |_ ___ ___ 
+  |   --|  |  |   --| | | | . | -_|  _|
+  |_____|_____|_____|_|_|_|___|___|_|
+    CUCMber - by cola`)
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
