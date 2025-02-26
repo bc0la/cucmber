@@ -1,4 +1,4 @@
-# cucmber
+# CUCMber
 Steal config files from cisco/cucm phones
 
 Inspired by https://github.com/trustedsec/SeeYouCM-Thief
