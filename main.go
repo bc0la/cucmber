@@ -50,7 +50,7 @@ func main() {
 			fmt.Printf("%s: error fetching serviceability page: %v\n", ip, err)
 			continue
 		}
-		hostName, tftp, err := parseHTML(resp.Body)
+		hostName, tftp, ucm, err := parseHTML(resp.Body)
 		resp.Body.Close()
 		if err != nil {
 			fmt.Printf("%s: parse error: %v\n", ip, err)
@@ -59,6 +59,34 @@ func main() {
 		fmt.Printf("%s, %s, %s\n", ip, tftp, hostName)
 
 		// snag the config file
+		if tftp == "::" || tftp == "" {
+			fmt.Print("tftp null, trying ucm\n")
+			tftp = ucm
+
+		}
+		//probably dupes some effort, check for cache list. should refactor this later
+		cacheListFile := "http://" + tftp + ":6970/ConfigFileCacheList.txt"
+		respCacheList, err := http.Get(cacheListFile)
+		if err != nil {
+			fmt.Printf("error getting Cachelist: %s\n", err)
+		}
+		defer resp.Body.Close()
+
+		scanner := bufio.NewScanner(respCacheList.Body)
+		var configFileNames []string
+		for scanner.Scan() {
+			line := scanner.Text()
+			parts := strings.Fields(line)
+			if len(parts) > 0 && strings.Contains(parts[0], ".") {
+				configFileNames = append(configFileNames, parts[0])
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			fmt.Print(err)
+		}
+
+		downloadFiles(tftp, configFileNames)
+
 		configURL := "http://" + tftp + ":6970/" + hostName + ".cnf.xml.sgn"
 		respConfig, err := http.Get(configURL)
 		if err != nil {
@@ -87,10 +115,10 @@ func main() {
 }
 
 // extract hostname and tftp server
-func parseHTML(r io.Reader) (hostName, tftp string, err error) {
+func parseHTML(r io.Reader) (hostName, tftp string, ucm string, err error) {
 	doc, err := html.Parse(r)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	var f func(*html.Node)
 	f = func(n *html.Node) {
@@ -102,6 +130,10 @@ func parseHTML(r io.Reader) (hostName, tftp string, err error) {
 				hostName = value
 			case strings.Contains(lowerLabel, "tftp server 1") && tftp == "":
 				tftp = value
+			case strings.Contains(lowerLabel, "unified cm 1") && ucm == "":
+				ucmarray := strings.Split(value, " ")
+				ucm = ucmarray[0]
+
 			}
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -109,10 +141,10 @@ func parseHTML(r io.Reader) (hostName, tftp string, err error) {
 		}
 	}
 	f(doc)
-	if hostName == "" || tftp == "" {
-		return hostName, tftp, fmt.Errorf("could not find required fields")
+	if hostName == "" || tftp == "" && ucm == "" {
+		return hostName, tftp, ucm, fmt.Errorf("could not find required fields")
 	}
-	return hostName, tftp, nil
+	return hostName, tftp, ucm, nil
 }
 
 // support rows with either two cells (label, value) or three (label, spacer, value).
@@ -132,6 +164,42 @@ func extractRow(n *html.Node) (label, value string) {
 		value = tds[2]
 	}
 	return label, value
+}
+
+func downloadFiles(tftp string, filenames []string) {
+	if err := os.MkdirAll("./output", 0755); err != nil {
+		panic(err)
+	}
+
+	for _, fname := range filenames {
+		url := "http://" + tftp + ":6970/" + fname
+		outpath := "./output/" + fname
+
+		res, err := http.Get(url)
+		if err != nil {
+			fmt.Printf("Error downloading file %s: %v\n", fname, err)
+			continue
+		}
+		defer res.Body.Close()
+
+		outFile, err := os.Create(outpath)
+		if err != nil {
+			fmt.Printf("Error making fole %s: %v\n", outpath, err)
+			res.Body.Close()
+			continue
+		}
+
+		_, err = io.Copy(outFile, res.Body)
+		outFile.Close()
+		res.Body.Close()
+
+		if err != nil {
+			fmt.Printf("error saving %s: %v\n", outpath, err)
+		} else {
+			fmt.Printf("Saved %s\n", outpath)
+		}
+	}
+
 }
 
 func extractText(n *html.Node) string {
