@@ -65,12 +65,13 @@ func main() {
 
 		}
 		//probably dupes some effort, check for cache list. should refactor this later
-		cacheListFile := "http://" + tftp + ":6970/ConfigFileCacheList.txt"
+		cacheListFile := fmt.Sprintf("http://%s:6970/ConfigFileCacheList.txt", tftp)
 		respCacheList, err := http.Get(cacheListFile)
 		if err != nil {
-			fmt.Printf("error getting Cachelist: %s\n", err)
+			fmt.Printf("Error getting Cachelist: %s\n", err)
+			continue
 		}
-		defer resp.Body.Close()
+		defer respCacheList.Body.Close()
 
 		scanner := bufio.NewScanner(respCacheList.Body)
 		var configFileNames []string
@@ -82,10 +83,11 @@ func main() {
 			}
 		}
 		if err := scanner.Err(); err != nil {
-			fmt.Print(err)
+			fmt.Printf("Error scanning cache list: %v\n", err)
+			continue
 		}
 
-		downloadFiles(tftp, configFileNames)
+		downloadFiles(tftp, hostName, configFileNames)
 
 		configURL := "http://" + tftp + ":6970/" + hostName + ".cnf.xml.sgn"
 		respConfig, err := http.Get(configURL)
@@ -166,13 +168,20 @@ func extractRow(n *html.Node) (label, value string) {
 	return label, value
 }
 
-func downloadFiles(tftp string, filenames []string) {
+func downloadFiles(tftp string, hostName string, filenames []string) {
 	if err := os.MkdirAll("./output", 0755); err != nil {
-		panic(err)
+		fmt.Printf("Error creating output directory: %v\n", err)
+		return
+	}
+
+	// Add config URL to the list of files to download
+	if hostName != "" {
+		configFile := hostName + ".cnf.xml.sgn"
+		filenames = append(filenames, configFile)
 	}
 
 	for _, fname := range filenames {
-		url := "http://" + tftp + ":6970/" + fname
+		url := fmt.Sprintf("http://%s:6970/%s", tftp, fname)
 		outpath := "./output/" + fname
 
 		res, err := http.Get(url)
@@ -180,11 +189,10 @@ func downloadFiles(tftp string, filenames []string) {
 			fmt.Printf("Error downloading file %s: %v\n", fname, err)
 			continue
 		}
-		defer res.Body.Close()
 
 		outFile, err := os.Create(outpath)
 		if err != nil {
-			fmt.Printf("Error making fole %s: %v\n", outpath, err)
+			fmt.Printf("Error creating file %s: %v\n", outpath, err)
 			res.Body.Close()
 			continue
 		}
@@ -194,12 +202,11 @@ func downloadFiles(tftp string, filenames []string) {
 		res.Body.Close()
 
 		if err != nil {
-			fmt.Printf("error saving %s: %v\n", outpath, err)
+			fmt.Printf("Error saving %s: %v\n", outpath, err)
 		} else {
 			fmt.Printf("Saved %s\n", outpath)
 		}
 	}
-
 }
 
 func extractText(n *html.Node) string {
