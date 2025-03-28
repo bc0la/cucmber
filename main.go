@@ -64,7 +64,7 @@ func main() {
 			tftp = ucm
 
 		}
-		//probably dupes some effort, check for cache list. should refactor this later
+		//check for cache list.
 		cacheListFile := fmt.Sprintf("http://%s:6970/ConfigFileCacheList.txt", tftp)
 		respCacheList, err := http.Get(cacheListFile)
 		if err != nil {
