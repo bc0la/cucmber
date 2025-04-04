@@ -18,4 +18,4 @@ TODO:
 
 ## NOTE:
 
-very much a work in progress, I am making and breaking things in other branches that may or may now be working. feedback welcome! 
+very much a work in progress, I am making and breaking things to clean this up in other branches that may or may not be working. feedback welcome! 
