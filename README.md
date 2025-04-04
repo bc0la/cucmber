@@ -12,6 +12,10 @@ I like:
 
 I'm not sure which models are supported, sorry!
 
+## TODO
+- add device name brute forcing
+- auto builds
+
 ## NOTE:
 
 If you have issues with the main branch, try the refactor branch, has some older code. The main branch has been modified to run faster and provide (hopefully) a more thorough search, ConfigFileCacheList.txt has not yet been tested.
