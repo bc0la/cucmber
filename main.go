@@ -64,6 +64,55 @@ func main() {
 			tftp = ucm
 
 		}
+
+		fmt.Printf("pulling spdefault from %s\n", tftp)
+		spFile := fmt.Sprintf("http://%s:6970/SPDefault.cnf.xml", tftp)
+		respSP, err := http.Get(spFile)
+		if err != nil {
+			fmt.Printf("Error getting SPDefault, maybe try .sgn: %s\n", err)
+			continue
+		}
+		defer respSP.Body.Close()
+
+		spOutFileName := "output/" + tftp + ".spdefault"
+		spoutFile, err := os.Create(spOutFileName)
+		if err != nil {
+			fmt.Printf("Error creating file %s: %v\n", spOutFileName, err)
+			continue
+		}
+
+		_, err = io.Copy(spoutFile, respSP.Body)
+		spoutFile.Close()
+		if err != nil {
+			fmt.Printf("Error saving config to %s: %v\n", spOutFileName, err)
+			continue
+		}
+		fmt.Printf("!!!!!!!! Saved SPDefault! config for %s to %s\n", tftp, spOutFileName)
+
+		fmt.Printf("pulling spdefault.sgn from %s\n", tftp)
+		spSgnFile := fmt.Sprintf("http://%s:6970/SPDefault.cnf.xml.sgn", tftp)
+		respSPSgn, err := http.Get(spSgnFile)
+		if err != nil {
+			fmt.Printf("Error getting SPDefault.sgn: %s\n", err)
+			continue
+		}
+		defer respSPSgn.Body.Close()
+
+		spSgnOutFileName := "output/" + tftp + ".spdefault.sgn"
+		spSgnoutFile, err := os.Create(spSgnOutFileName)
+		if err != nil {
+			fmt.Printf("Error creating file %s: %v\n", spSgnOutFileName, err)
+			continue
+		}
+
+		_, err = io.Copy(spSgnoutFile, respSPSgn.Body)
+		spSgnoutFile.Close()
+		if err != nil {
+			fmt.Printf("Error saving config to %s: %v\n", spSgnOutFileName, err)
+			continue
+		}
+		fmt.Printf("!!!!!!!! Saved SPDefaultSgn! config for %s to %s\n", tftp, spSgnOutFileName)
+
 		//check for cache list.
 		cacheListFile := fmt.Sprintf("http://%s:6970/ConfigFileCacheList.txt", tftp)
 		respCacheList, err := http.Get(cacheListFile)
@@ -97,7 +146,7 @@ func main() {
 		}
 		defer respConfig.Body.Close()
 
-		outFileName := "output/" + hostName + ".cnf.xml.sgn"
+		outFileName := "output/" + tftp + "." + hostName + ".cnf.xml.sgn"
 		outFile, err := os.Create(outFileName)
 		if err != nil {
 			fmt.Printf("Error creating file %s: %v\n", outFileName, err)
@@ -182,7 +231,7 @@ func downloadFiles(tftp string, hostName string, filenames []string) {
 
 	for _, fname := range filenames {
 		url := fmt.Sprintf("http://%s:6970/%s", tftp, fname)
-		outpath := "./output/" + fname
+		outpath := "./output/" + tftp + "." + fname
 
 		res, err := http.Get(url)
 		if err != nil {
